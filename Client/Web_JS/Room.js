@@ -1,12 +1,12 @@
 const ROUTING_SERVER_ADDR = "127.0.0.1";
 const ROUTING_SERVER_ROOM_SOCKETIO_PORT = 52274;
 
-const REQUEST_OPERATION_TYPE_ENUM = {
-									Create : "C",
-									Read : "R",
-									Update : "U",
-									Delete : "D"
-									};
+
+const OPERATION_TYPE = {CREATE : 0,
+						READ : 1,
+						UPDATE : 2,
+						DELETE : 3
+						};
 
 function addJavascript(jsname) {
 	var th = document.getElementsByTagName('head')[0];
@@ -38,13 +38,15 @@ function Room(serverAddr, serverPort, userId){
 	};
 	
 	var requestSameRoomUserInfo = function(){
-		RoutingSocketIO.emit("SRInfo",roomId);
+		console.log("req srinfo");
+		RoomSocketIo.emit("SRInfo",roomId);
 	};
 	
 	this.joinRoom = function(roomName){
 		connectToRoutingServer();
 		
 		var passingFunction = this.roomJoinedCallBack;
+		var self = this;
 		
 		RoutingSocketIO.emit("AddrPortReq", roomName);
 		
@@ -59,20 +61,24 @@ function Room(serverAddr, serverPort, userId){
 			}
 			console.log(data);
 			RoomSocketIo = io.connect("http://" + data.addr + ":" + data.port,{'force new connection': true });
+			//console.log(RoomSocketIo);
+			//RoomSocketIo.socket.options.reconnect = false;
+
+			
 			var joinReqInfo = {
 									roomName : data.roomName,
 									userId : userId,
 									retryCount : 0
 								};
 			console.log(RoomSocketIo);
-			RoomSocketIo.emit("JoinReq",joinReqInfo);
+			
 			RoomSocketIo.on("JoinRet",function(data){
 				if(!readyToCommuication){
 					if(data.approval){
 						readyToCommuication = true;
 						roomId = data.roomName;
 						requestSameRoomUserInfo();
-						passingFunction();
+						self.roomJoinedCallBack(data);
 					}
 					else{
 						RoomSocketIo.disconnect();
@@ -108,38 +114,56 @@ function Room(serverAddr, serverPort, userId){
 						if(!isFound)
 							sameRoomUsers.push(data.userId);
 					}
+					console.log("JoinUser : " + data.userId);
 				}
 			});
+			
+			RoomSocketIo.on("LeaveRet", function(data){
+
+				if(data.roomId == roomId){
+					for(var i=0; i< sameRoomUsers.length; i++){
+						if(sameRoomUsers[i] == data.userId){
+							sameRoomUsers.splice(i,1);
+							break;
+						}								
+					}
+				}
+				console.log("Leaving User :" + data.userId);
+			});
+			RoomSocketIo.on("SRInfo", function(data){
+				for(var i=0; i<data.length; i++){
+					var isFound = false;
+					for(var j=0; j< sameRoomUsers.length; j++){
+						if(sameRoomUsers[j] == data[i]){
+							isFound = true;
+							break;
+						}								
+					}
+					if(!isFound)
+						sameRoomUsers.push(data[i]);
+				}
+				
+				for(var i=0; i<sameRoomUsers.length; i++){
+					console.log(sameRoomUsers[i]);
+				}
+			});			
+			RoomSocketIo.on("RoomMessage", function(data){
+				console.log("aaa");
+				self.messageCallBack(data);
+			});
+			
+			RoomSocketIo.emit("JoinReq",joinReqInfo);
 		});
 		
-		RoutingSocketIO.on("LeaveRet", function(data){
 
-			if(data.roomId == roomId){
-				for(var i=0; i< sameRoomUsers.length; i++){
-					if(sameRoomUsers[i] == data.userId){
-						sameRoomUsers.splice(i,1);
-						break;
-					}								
-				}
-			}
-		});
-		RoutingSocketIO.on("SRInfo", function(data){
-			for(var i=0; i<data.length; i++){
-				var isFound = false;
-				for(var j=0; j< sameRoomUsers.length; j++){
-					if(sameRoomUsers[j] == data[i]){
-						isFound = true;
-						break;
-					}								
-				}
-				if(!isFound)
-					sameRoomUsers.push(data.userId);
-			}
-		});
 		
 	};
 	
-	this.roomJoinedCallBack = function(){
+	this.roomJoinedCallBack = function(data){
+	};
+	
+	this.messageCallBack = function(message){
+		console.log(message);
 	};
 	
 	this.leaveRoom = function(){
@@ -150,20 +174,48 @@ function Room(serverAddr, serverPort, userId){
 		RoomSocketIo.emit("leave",roomId);
 	};
 	this.broadCastToCR = function(message,type){
-		RoomSocketIo.emit("BroadCastM", {t : type,
-										m : message});
+		if(!readyToCommuication){
+			console.log("You should establish room first!!");
+			return;
+		}
+		RoomSocketIo.emit("BroadCastM", {r : roomId,
+										fu : userId,
+										m : message,
+										t : type});
 	};
 	this.publicToCR = function(message,type){
-		RoomSocketIo.emit("PublicM", {t : type,
-										m : message});
-	};
-	this.privateToSomeOne = function(userIdArray, message, type){
-		if(typeof socketIdArray != 'Array'){
-			console.log("You must put Array type for the socketIdArray parameter");
+		if(!readyToCommuication){
+			console.log("You should establish room first!!");
+			return;
 		}
-		RoomSocketIo.emit("PrivateM", { ia : userIdArray,
-										t : type,
-										m : message});
+		RoomSocketIo.emit("PublicM", {r : roomId,
+									fu : userId,
+									m : message,
+									t : type});
+	};
+	this.privateToSomeOne = function(toUserId, message, type){
+		if(!readyToCommuication){
+			console.log("You should establish room first!!");
+			return;
+		}
+		if(toUserId == userId){
+			console.log("You cannot send message your self, Please use privateToSelf function instead");
+			return;
+		}
+		RoomSocketIo.emit("PrivateM", { r : roomId,
+									fu : userId,
+									tu : toUserId,										
+									m : message,
+									t : type});
+	};
+	this.privateToSelf = function(message, type){
+		if(!readyToCommuication){
+			console.log("You should establish room first!!");
+			return;
+		}
+		RoomSocketIo.emit("PrivateSelfM", { r : roomId,										
+											m : message,
+											t : type});
 	};
 	
 }
