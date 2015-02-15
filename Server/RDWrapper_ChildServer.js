@@ -175,7 +175,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					return;
 				}
 				
-				data.m = res.mes;
+				data.m = res.ret;
 			
 				socket.broadcast.to(data.r).emit("RoomMessage",data);
 				var roomObj = room_Clients_Hashmap.get(data.r);
@@ -204,7 +204,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					return;
 				}
 				
-				data.m = res.mes;
+				data.m = res.ret;
 				
 				RoomSocketIo.sockets.in(data.r).emit("RoomMessage",data);
 				
@@ -236,7 +236,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					return;
 				}
 				
-				data.m = res.mes;
+				data.m = res.ret;
 			
 				var roomObj = room_Clients_Hashmap.get(data.r);
 				var toUserInfo = null;
@@ -279,7 +279,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					return;
 				}
 				socket.emit("RoomMessage", {r : data.r,										
-							m : res.mes,
+							m : res.ret,
 							t : data.t});
 				/*if(data.t == OPERATION_TYPE.READ)
 					// change to event Listener
@@ -626,7 +626,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						var rm = {r : roomId,
 								fu : fromUserId,
-								m : message,
+								m : res.ret,
 								t : Number(type)};
 						
 						RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
@@ -635,7 +635,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						
 						rm = "RoomMessage" + spaceDelimiter
-							+ initJsonString
+							+ JSON.stringify(rm)
 							+ nullCharDelimiter;
 							
 						for(var i=0; i< roomObj.tcpSocketClients.length; i++){
@@ -666,7 +666,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						var rm = {r : roomId,
 								fu : fromUserId,
-								m : message,
+								m : res.ret,
 								t : Number(type)};
 						
 						console.log(RoomSocketIo.sockets);
@@ -680,7 +680,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						
 						rm = "RoomMessage" + spaceDelimiter
-							+ initJsonString
+							+ JSON.stringify(rm)
 							+ nullCharDelimiter;
 							
 						for(var i=0; i< roomObj.tcpSocketClients.length; i++){
@@ -711,19 +711,21 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						for(var i=0; i< roomObj.tcpSocketClients.length; i++){
 							if(roomObj.tcpSocketClients[i].userId == toUserId){
 								toUserInfo = roomObj.tcpSocketClients[i];
+
+								var rm = {r : roomId,
+										fu : fromUserId,
+										tu : toUserId,
+										m : res.ret,
+										t : Number(type)};
 								
 								if(toUserInfo.socketType == SOCKET_TYPE.web){
-									var rm = {r : roomId,
-											fu : fromUserId,
-											tu : toUserId,
-											m : message,
-											t : Number(type)};
+
 									toUserInfo.socketObj.emit("RoomMessage",rm);
 								}
 								else{
-									var rm = "RoomMessage" + spaceDelimiter
-											+ initJsonString
-											+ nullCharDelimiter;
+									rm = "RoomMessage" + spaceDelimiter
+										+ JSON.stringify(rm)
+										+ nullCharDelimiter;
 									toUserInfo.socketObj.write(rm);
 								}						
 							}
@@ -745,25 +747,19 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 							return;
 						}
 						
-						if(Number(type) == OPERATION_TYPE.READ){
-							var newData = { r : roomId,
-											m : res.mes,
-											t : type
-											};
-											
-							var rm = "RoomMessage" + spaceDelimiter
-									JSON.stringify(newData)
-									+ nullCharDelimiter;						
-							
-							conn.write(rm);
-						}
-						else{
-							var rm = "RoomMessage" + spaceDelimiter
-									+ initJsonString
-									+ nullCharDelimiter;						
-							
-							conn.write(rm);
-						}
+						
+						var newData = { r : roomId,
+										m : res.ret,
+										t : type
+										};
+										
+						var rm = "RoomMessage" + spaceDelimiter
+								JSON.stringify(newData)
+								+ nullCharDelimiter;						
+						
+						conn.write(rm);
+						
+
 						
 						
 
