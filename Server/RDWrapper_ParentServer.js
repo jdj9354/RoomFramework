@@ -241,16 +241,17 @@ RoutingServerIo.sockets.on('connection', function (socket){
 										status : 0};*/
 			//roomInfoHashMap.set(data,socketIoServerInfo);
 			//childSocketIOServers[minIndex].roomCount++;
-			
-			var retObj = {
-							addr : RDWrapperChildServers[minIndex].remoteAddress,
-							port : RDWrapperChildServers[minIndex].webSocketPort,
-							roomName : data
-						};
-						
-			console.log(retObj);
+			if(minIndex != -1){
+				var retObj = {
+								addr : RDWrapperChildServers[minIndex].remoteAddress,
+								port : RDWrapperChildServers[minIndex].webSocketPort,
+								roomName : data
+							};
+				
+							
 
-			RoutingServerIo.sockets.sockets[socket.id].emit('AddrPortRet',retObj);
+				RoutingServerIo.sockets.sockets[socket.id].emit('AddrPortRet',retObj);
+			}
 			//socket.emit(socketIoServerInfo);
 			
 		}
