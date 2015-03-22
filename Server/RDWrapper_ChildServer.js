@@ -35,7 +35,7 @@ var operations = function (){
 	this.Read = null;
 	this.Update = null;
 	this.Delete = null;
-	this.StoreBack = null;
+	//this.StoreBack = null;
 };
 
 
@@ -1040,16 +1040,16 @@ function map_operations (a_imported_module){
 		console.log("failed to map operations, Delete function is not implemented");
 		return false;
 	}
-	if((a_imported_module.StoreBack == null)){
+	/*if((a_imported_module.StoreBack == null)){
 		console.log("failed to map operations, StoreBack function is not implemented");
 		return false;
-	}
+	}*/
 	
 	operations.Create = a_imported_module.Create;
 	operations.Read = a_imported_module.Read;
 	operations.Update = a_imported_module.Update;
 	operations.Delete = a_imported_module.Delete;
-	operations.StoreBack = a_imported_module.StoreBack;
+//	operations.StoreBack = a_imported_module.StoreBack;
 
 	// Map operations
 	return true;
