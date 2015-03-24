@@ -38,6 +38,11 @@ var operations = function (){
 	//this.StoreBack = null;
 };
 
+//Callback functions provided by this child module (implementation is optional)
+var callBacks = function (){
+	this.onRoomRemoved = function(roomId){};
+	//this.StoreBack = null;
+};
 
 
 if(process.argv.length != 5){
@@ -335,6 +340,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 				
 				if(clientArr.length == 0){
 					room_Clients_Hashmap.remove(data);
+					callBacks.onRoomRemoved(data);
 					
 					var sendData = "1 " + data + nullCharDelimiter;
 					InternalCommunicationSocket.write(sendData);
@@ -397,6 +403,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					
 					if(clientArr.length == 0){
 						room_Clients_Hashmap.remove(room);
+						callBacks.onRoomRemoved(room);
 						
 						var sendData = "1 " + room + nullCharDelimiter;
 						InternalCommunicationSocket.write(sendData);
@@ -564,6 +571,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						if(clientArr.length == 0){
 							room_Clients_Hashmap.remove(room);
+							callBacks.onRoomRemoved(room);
 							
 							var sendData = "1 " + room + nullCharDelimiter;
 							InternalCommunicationSocket.write(sendData);
@@ -821,6 +829,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					
 					if(clientArr.length == 0){
 						room_Clients_Hashmap.remove(room);
+						callBacks.onRoomRemoved(room);
 						
 						var sendData = "1 " + room + nullCharDelimiter;
 						InternalCommunicationSocket.write(sendData);
@@ -1050,7 +1059,11 @@ function map_operations (a_imported_module){
 	operations.Update = a_imported_module.Update;
 	operations.Delete = a_imported_module.Delete;
 //	operations.StoreBack = a_imported_module.StoreBack;
-
+	
+	
+	if(a_imported_module.onRoomRemoved != null)
+		callBacks.onRoomRemoved = onRoomRemoved;
+	
 	// Map operations
 	return true;
 }
