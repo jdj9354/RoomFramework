@@ -27,7 +27,8 @@ var net = require('net');
 /*var childProcessModule = require('child_process');
 var dbHelperProcess = childProcessModule.fork(__dirname + '/'+DB_HELPER_JS_NAME);*/
 
-var SocketIORoutingServer = net.createServer(function(conn){
+var SocketIORoutingServer = net.createServer(function(conn){	
+	console.log(conn.remoteFamily);
 	console.log("RDWrapper Child Server Connected : " + conn.remoteAddress);
 	console.log(conn.localPort);
 	

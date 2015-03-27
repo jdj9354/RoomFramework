@@ -17,6 +17,12 @@ const nullCharValue = 0;
 const ROUTING_SERVER_ADDRESS = "127.0.0.1";
 const ROUTING_SERVER_PORT = 52272;
 
+const MAX_EVENT_LISTENERS = 0; //unlimited
+
+var eventModule =  require('events').EventEmitter;
+var emitter = new eventModule();
+emitter.setMaxListeners(MAX_EVENT_LISTENERS);
+
 
 
 var webSocketPortNumber = -1;
@@ -29,7 +35,10 @@ var imported_module = null;
 var tcpStreamData = "";
 
 //Base on CRUD Operations
-//Each operation should return value as {suc : 0/1 , mes : [some value]}
+//Each operation should return value as {suc : 0/1/2 , mes : [some value] or AsyncResultEventName}
+// 0 : Fail
+// 1 : Success
+// 2 : Delayed result (should refer to the event name on the mes)
 var operations = function (){
 	this.Create = null;
 	this.Read = null;
@@ -61,6 +70,7 @@ else{
 
 var module_path = process.argv[4];
 imported_module = require(module_path);
+imported_module.emitter = emitter;
 
 if(imported_module == null){
 	console.log("Failed to load module - " + module_path +", Please check path of the module ");
@@ -175,27 +185,38 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 				
 				var res = callCRUDOperaton(data.m, data.t);
 				
-				if(res.suc == 0){
-					console.log(res.mes);
-					return;
-				}
+				var callBack = function(){
 				
-				data.m = res.ret;
-			
-				socket.broadcast.to(data.r).emit("RoomMessage",data);
-				var roomObj = room_Clients_Hashmap.get(data.r);
-				/*var rm = "RoomMessage" + spaceDelimiter
-					+ data.r + spaceDelimiter
-					+ data.fu + spaceDelimiter
-					+ JSON.stringify(data.m) + spaceDelimiter
-					+ data.t 
-					+ nullCharDelimiter;*/
-				var rm = "RoomMessage" + spaceDelimiter 
-						+ JSON.stringify(data)
-						+ nullCharDelimiter;
-				for(var i=0; i< roomObj.tcpSocketClients.length; i++){
-					roomObj.tcpSocketClients[i].write(rm);
+					data.m = res.ret;
+				
+					socket.broadcast.to(data.r).emit("RoomMessage",data);
+					var roomObj = room_Clients_Hashmap.get(data.r);
+					/*var rm = "RoomMessage" + spaceDelimiter
+						+ data.r + spaceDelimiter
+						+ data.fu + spaceDelimiter
+						+ JSON.stringify(data.m) + spaceDelimiter
+						+ data.t 
+						+ nullCharDelimiter;*/
+					var rm = "RoomMessage" + spaceDelimiter 
+							+ JSON.stringify(data)
+							+ nullCharDelimiter;
+					for(var i=0; i< roomObj.tcpSocketClients.length; i++){
+						roomObj.tcpSocketClients[i].write(rm);
+					}
+				};
+				switch(res.suc){
+				case 0 :
+					console.log(res.mes);
+					break;
+				case 1 :
+					callBack();
+					break;
+				case 2 :
+					emitter.once(res.mes,callBack);
+					break;
 				}
+
+				
 							
 			});
 
@@ -204,31 +225,38 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 			
 				var res = callCRUDOperaton(data.m, data.t);
 				
-				if(res.suc == 0){
+				var callBack = function(){
+				
+					data.m = res.ret;
+					
+					RoomSocketIo.sockets.in(data.r).emit("RoomMessage",data);
+					
+					socket.broadcast.emit("RoomMessage",data);
+					var roomObj = room_Clients_Hashmap.get(data.r);
+					/*var rm = "RoomMessage" + spaceDelimiter
+						+ data.r + spaceDelimiter
+						+ data.fu + spaceDelimiter
+						+ JSON.stringify(data.m) + spaceDelimiter
+						+ data.t 
+						+ nullCharDelimiter;*/
+					var rm = "RoomMessage" + spaceDelimiter 
+							+ JSON.stringify(data)
+							+ nullCharDelimiter;
+					for(var i=0; i< roomObj.tcpSocketClients.length; i++){
+						roomObj.tcpSocketClients[i].write(rm);
+					}
+				};
+				switch(res.suc){
+				case 0 :
 					console.log(res.mes);
-					return;
-				}
-				
-				data.m = res.ret;
-				
-				RoomSocketIo.sockets.in(data.r).emit("RoomMessage",data);
-				
-				socket.broadcast.emit("RoomMessage",data);
-				var roomObj = room_Clients_Hashmap.get(data.r);
-				/*var rm = "RoomMessage" + spaceDelimiter
-					+ data.r + spaceDelimiter
-					+ data.fu + spaceDelimiter
-					+ JSON.stringify(data.m) + spaceDelimiter
-					+ data.t 
-					+ nullCharDelimiter;*/
-				var rm = "RoomMessage" + spaceDelimiter 
-						+ JSON.stringify(data)
-						+ nullCharDelimiter;
-				for(var i=0; i< roomObj.tcpSocketClients.length; i++){
-					roomObj.tcpSocketClients[i].write(rm);
-				}
-				
-				
+					break;
+				case 1 :
+					callBack();
+					break;
+				case 2 :
+					emitter.once(res.mes,callBack);
+					break;
+				}			
 			});			
  
 			
@@ -236,68 +264,68 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 			
 				var res = callCRUDOperaton(data.m, data.t);
 				
-				if(res.suc == 0){
-					console.log(res.mes);
-					return;
-				}
+				var callBack = function(){				
+					data.m = res.ret;
 				
-				data.m = res.ret;
-			
-				var roomObj = room_Clients_Hashmap.get(data.r);
-				var toUserInfo = null;
+					var roomObj = room_Clients_Hashmap.get(data.r);
+					var toUserInfo = null;
 
-				for(var i=0; i< roomObj.tcpSocketClients.length; i++){
-					if(roomObj.tcpSocketClients[i].userId == data.tu){
-						toUserInfo = roomObj.tcpSocketClients[i];
-						
-						if(toUserInfo.socketType == SOCKET_TYPE.web){
-							toUserInfo.socketObj.emit("RoomMessage",data);
+					for(var i=0; i< roomObj.tcpSocketClients.length; i++){
+						if(roomObj.tcpSocketClients[i].userId == data.tu){
+							toUserInfo = roomObj.tcpSocketClients[i];
+							
+							if(toUserInfo.socketType == SOCKET_TYPE.web){
+								toUserInfo.socketObj.emit("RoomMessage",data);
+							}
+							else{
+								/*var rm = "RoomMessage" + spaceDelimiter
+										+ data.r + spaceDelimiter
+										+ data.fu + spaceDelimiter
+										+ data.tu + spaceDelimiter
+										+ JSON.stringify(data.m) + spaceDelimiter
+										+ data.t 
+										+ nullCharDelimiter;*/
+								var rm = "RoomMessage" + spaceDelimiter 
+										+ JSON.stringify(data)
+										+ nullCharDelimiter;
+								toUserInfo.socketObj.write(rm);
+							}						
 						}
-						else{
-							/*var rm = "RoomMessage" + spaceDelimiter
-									+ data.r + spaceDelimiter
-									+ data.fu + spaceDelimiter
-									+ data.tu + spaceDelimiter
-									+ JSON.stringify(data.m) + spaceDelimiter
-									+ data.t 
-									+ nullCharDelimiter;*/
-							var rm = "RoomMessage" + spaceDelimiter 
-									+ JSON.stringify(data)
-									+ nullCharDelimiter;
-							toUserInfo.socketObj.write(rm);
-						}						
 					}
-				}
-				
-				
-				
-				
-				
+				};
+				switch(res.suc){
+				case 0 :
+					console.log(res.mes);
+					break;
+				case 1 :
+					callBack();
+					break;
+				case 2 :
+					emitter.once(res.mes,callBack);
+					break;
+				}				
 			});
 			
 			socket.on('PrivateSelfM',function(data){
 				
 				var res = callCRUDOperaton(data.m, data.t);
-				
-				if(res.suc == 0){
-					console.log(res.mes);
-					return;
-				}
-				socket.emit("RoomMessage", {r : data.r,										
-							m : res.ret,
-							t : data.t});
-				/*if(data.t == OPERATION_TYPE.READ)
-					// change to event Listener
+
+				var callBack = function(){				
 					socket.emit("RoomMessage", {r : data.r,										
-												m : res.mes,
-												t : data.t});
-				else{
-					console.log("adsfjandlfjkn");
+								m : res.ret,
+								t : data.t});
+				};
+				switch(res.suc){
+				case 0 :
 					console.log(res.mes);
-					socket.emit("RoomMessage",{r : data.r,										
-												m : res.mes,
-												t : data.t});
-					}*/
+					break;
+				case 1 :
+					callBack();
+					break;
+				case 2 :
+					emitter.once(res.mes,callBack);
+					break;
+				}
 			});
 			
 			socket.on('leave',function(data){
@@ -626,33 +654,41 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						var type = jMessage.t;
 						
 						var res = callCRUDOperaton(message, type);
+
 						
-						if(res.suc == 0){
-							console.log(res.mes);
-							return;
-						}
-						
-						var rm = {r : roomId,
-								fu : fromUserId,
-								m : res.ret,
-								t : Number(type)};
-						
-						RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
-						
-						var roomObj = room_Clients_Hashmap.get(roomId);
-						
-						
-						rm = "RoomMessage" + spaceDelimiter
-							+ JSON.stringify(rm)
-							+ nullCharDelimiter;
+						var callBack = function(){				
+							var rm = {r : roomId,
+									fu : fromUserId,
+									m : res.ret,
+									t : Number(type)};
 							
-						for(var i=0; i< roomObj.tcpSocketClients.length; i++){
-							if(roomObj.tcpSocketClients[i] == conn)
-								continue;
+							RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
+							
+							var roomObj = room_Clients_Hashmap.get(roomId);
+							
+							
+							rm = "RoomMessage" + spaceDelimiter
+								+ JSON.stringify(rm)
+								+ nullCharDelimiter;
 								
-							roomObj.tcpSocketClients[i].write(rm);
+							for(var i=0; i< roomObj.tcpSocketClients.length; i++){
+								if(roomObj.tcpSocketClients[i] == conn)
+									continue;
+									
+								roomObj.tcpSocketClients[i].write(rm);
+							}
+						};
+						switch(res.suc){
+						case 0 :
+							console.log(res.mes);
+							break;
+						case 1 :
+							callBack();
+							break;
+						case 2 :
+							emitter.once(res.mes,callBack);
+							break;
 						}					
-					
 						break;
 					case "PublicM" :
 						var initJsonString = tcpStreamData.substring(tcpStreamData.indexOf(" "));
@@ -667,33 +703,37 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						var res = callCRUDOperaton(message, type);
 						
-						if(res.suc == 0){
-							console.log(res.mes);
-							return;
-						}
-						
-						var rm = {r : roomId,
-								fu : fromUserId,
-								m : res.ret,
-								t : Number(type)};
-						
-						console.log(RoomSocketIo.sockets);
-						console.log("aaa");
-						console.log(RoomSocketIo.sockets.in("adsfaef"));
-						
-						//RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
-						RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
-						
-						var roomObj = room_Clients_Hashmap.get(roomId);
-						
-						
-						rm = "RoomMessage" + spaceDelimiter
-							+ JSON.stringify(rm)
-							+ nullCharDelimiter;
+						var callBack = function(){				
+							var rm = {r : roomId,
+									fu : fromUserId,
+									m : res.ret,
+									t : Number(type)};
+									
+							//RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
+							RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
 							
-						for(var i=0; i< roomObj.tcpSocketClients.length; i++){
-							roomObj.tcpSocketClients[i].write(rm);
-						}						
+							var roomObj = room_Clients_Hashmap.get(roomId);
+							
+							
+							rm = "RoomMessage" + spaceDelimiter
+								+ JSON.stringify(rm)
+								+ nullCharDelimiter;
+								
+							for(var i=0; i< roomObj.tcpSocketClients.length; i++){
+								roomObj.tcpSocketClients[i].write(rm);
+							}
+						};
+						switch(res.suc){
+						case 0 :
+							console.log(res.mes);
+							break;
+						case 1 :
+							callBack();
+							break;
+						case 2 :
+							emitter.once(res.mes,callBack);
+							break;
+						}			
 						break;
 					case "PrivateM" :
 						var initJsonString = tcpStreamData.substring(tcpStreamData.indexOf(" "));
@@ -705,40 +745,47 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						var type = jMessage.t;
 						
 						var res = callCRUDOperaton(message, type);
-						
-						if(res.suc == 0){
-							console.log(res.mes);
-							return;
-						}
-						
-						var roomObj = room_Clients_Hashmap.get(roomId);
-						var toUserInfo = null;
-						
+	
+						var callBack = function(){				
+							var roomObj = room_Clients_Hashmap.get(roomId);
+							var toUserInfo = null;
+							
 
 
-						for(var i=0; i< roomObj.tcpSocketClients.length; i++){
-							if(roomObj.tcpSocketClients[i].userId == toUserId){
-								toUserInfo = roomObj.tcpSocketClients[i];
+							for(var i=0; i< roomObj.tcpSocketClients.length; i++){
+								if(roomObj.tcpSocketClients[i].userId == toUserId){
+									toUserInfo = roomObj.tcpSocketClients[i];
 
-								var rm = {r : roomId,
-										fu : fromUserId,
-										tu : toUserId,
-										m : res.ret,
-										t : Number(type)};
-								
-								if(toUserInfo.socketType == SOCKET_TYPE.web){
+									var rm = {r : roomId,
+											fu : fromUserId,
+											tu : toUserId,
+											m : res.ret,
+											t : Number(type)};
+									
+									if(toUserInfo.socketType == SOCKET_TYPE.web){
 
-									toUserInfo.socketObj.emit("RoomMessage",rm);
+										toUserInfo.socketObj.emit("RoomMessage",rm);
+									}
+									else{
+										rm = "RoomMessage" + spaceDelimiter
+											+ JSON.stringify(rm)
+											+ nullCharDelimiter;
+										toUserInfo.socketObj.write(rm);
+									}						
 								}
-								else{
-									rm = "RoomMessage" + spaceDelimiter
-										+ JSON.stringify(rm)
-										+ nullCharDelimiter;
-									toUserInfo.socketObj.write(rm);
-								}						
 							}
+						};
+						switch(res.suc){
+						case 0 :
+							console.log(res.mes);
+							break;
+						case 1 :
+							callBack();
+							break;
+						case 2 :
+							emitter.once(res.mes,callBack);
+							break;
 						}					
-						
 						break;
 					case "PrivateSelfM" :
 						var initJsonString = tcpStreamData.substring(tcpStreamData.indexOf(" "));
@@ -749,29 +796,30 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 		
 						var res = callCRUDOperaton(message, type);
-						
-						if(res.suc == 0){
+
+						var callBack = function(){				
+							var newData = { r : roomId,
+											m : res.ret,
+											t : type
+											};
+											
+							var rm = "RoomMessage" + spaceDelimiter
+									JSON.stringify(newData)
+									+ nullCharDelimiter;						
+							
+							conn.write(rm);
+						};
+						switch(res.suc){
+						case 0 :
 							console.log(res.mes);
-							return;
-						}
-						
-						
-						var newData = { r : roomId,
-										m : res.ret,
-										t : type
-										};
-										
-						var rm = "RoomMessage" + spaceDelimiter
-								JSON.stringify(newData)
-								+ nullCharDelimiter;						
-						
-						conn.write(rm);
-						
-
-						
-						
-
-						
+							break;
+						case 1 :
+							callBack();
+							break;
+						case 2 :
+							emitter.once(res.mes,callBack);
+							break;
+						}					
 						break;						
 					}
 					
@@ -1062,7 +1110,7 @@ function map_operations (a_imported_module){
 	
 	
 	if(a_imported_module.onRoomRemoved != null)
-		callBacks.onRoomRemoved = onRoomRemoved;
+		callBacks.onRoomRemoved = a_imported_module.onRoomRemoved;
 	
 	// Map operations
 	return true;
