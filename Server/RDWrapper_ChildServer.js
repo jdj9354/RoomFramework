@@ -185,9 +185,9 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 				
 				var res = callCRUDOperaton(data.m, data.t);
 				
-				var callBack = function(){
+				var callBack = function(arg){
 				
-					data.m = res.ret;
+					data.m = arg;
 				
 					socket.broadcast.to(data.r).emit("RoomMessage",data);
 					var roomObj = room_Clients_Hashmap.get(data.r);
@@ -209,7 +209,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					console.log(res.mes);
 					break;
 				case 1 :
-					callBack();
+					callBack(data.m);
 					break;
 				case 2 :
 					emitter.once(res.mes,callBack);
@@ -225,9 +225,9 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 			
 				var res = callCRUDOperaton(data.m, data.t);
 				
-				var callBack = function(){
+				var callBack = function(arg){
 				
-					data.m = res.ret;
+					data.m = arg;
 					
 					RoomSocketIo.sockets.in(data.r).emit("RoomMessage",data);
 					
@@ -251,7 +251,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					console.log(res.mes);
 					break;
 				case 1 :
-					callBack();
+					callBack(res.ret);
 					break;
 				case 2 :
 					emitter.once(res.mes,callBack);
@@ -264,8 +264,8 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 			
 				var res = callCRUDOperaton(data.m, data.t);
 				
-				var callBack = function(){				
-					data.m = res.ret;
+				var callBack = function(arg){				
+					data.m = arg;
 				
 					var roomObj = room_Clients_Hashmap.get(data.r);
 					var toUserInfo = null;
@@ -298,7 +298,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					console.log(res.mes);
 					break;
 				case 1 :
-					callBack();
+					callBack(res.ret);
 					break;
 				case 2 :
 					emitter.once(res.mes,callBack);
@@ -310,9 +310,9 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 				
 				var res = callCRUDOperaton(data.m, data.t);
 
-				var callBack = function(){				
+				var callBack = function(arg){				
 					socket.emit("RoomMessage", {r : data.r,										
-								m : res.ret,
+								m : arg,
 								t : data.t});
 				};
 				switch(res.suc){
@@ -320,9 +320,9 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 					console.log(res.mes);
 					break;
 				case 1 :
-					callBack();
+					callBack(res.ret);
 					break;
-				case 2 :
+				case 2 :					
 					emitter.once(res.mes,callBack);
 					break;
 				}
@@ -656,10 +656,10 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						var res = callCRUDOperaton(message, type);
 
 						
-						var callBack = function(){				
+						var callBack = function(arg){				
 							var rm = {r : roomId,
 									fu : fromUserId,
-									m : res.ret,
+									m : arg,
 									t : Number(type)};
 							
 							RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
@@ -683,7 +683,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 							console.log(res.mes);
 							break;
 						case 1 :
-							callBack();
+							callBack(res.ret);
 							break;
 						case 2 :
 							emitter.once(res.mes,callBack);
@@ -703,10 +703,10 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						var res = callCRUDOperaton(message, type);
 						
-						var callBack = function(){				
+						var callBack = function(arg){				
 							var rm = {r : roomId,
 									fu : fromUserId,
-									m : res.ret,
+									m : arg,
 									t : Number(type)};
 									
 							//RoomSocketIo.sockets.in(roomId).emit("RoomMessage",rm);
@@ -728,7 +728,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 							console.log(res.mes);
 							break;
 						case 1 :
-							callBack();
+							callBack(res.ret);
 							break;
 						case 2 :
 							emitter.once(res.mes,callBack);
@@ -746,7 +746,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 						
 						var res = callCRUDOperaton(message, type);
 	
-						var callBack = function(){				
+						var callBack = function(arg){				
 							var roomObj = room_Clients_Hashmap.get(roomId);
 							var toUserInfo = null;
 							
@@ -759,7 +759,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 									var rm = {r : roomId,
 											fu : fromUserId,
 											tu : toUserId,
-											m : res.ret,
+											m : arg,
 											t : Number(type)};
 									
 									if(toUserInfo.socketType == SOCKET_TYPE.web){
@@ -780,7 +780,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 							console.log(res.mes);
 							break;
 						case 1 :
-							callBack();
+							callBack(res.ret);
 							break;
 						case 2 :
 							emitter.once(res.mes,callBack);
@@ -797,9 +797,9 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 		
 						var res = callCRUDOperaton(message, type);
 
-						var callBack = function(){				
+						var callBack = function(arg){				
 							var newData = { r : roomId,
-											m : res.ret,
+											m : arg,
 											t : type
 											};
 											
@@ -814,7 +814,7 @@ var InternalCommunicationSocket = net.connect(ROUTING_SERVER_PORT, ROUTING_SERVE
 							console.log(res.mes);
 							break;
 						case 1 :
-							callBack();
+							callBack(res.ret);
 							break;
 						case 2 :
 							emitter.once(res.mes,callBack);
