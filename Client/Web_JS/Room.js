@@ -16,7 +16,7 @@ function addJavascript(jsname) {
 	th.appendChild(s);
 }
 
-addJavascript("/socket.io/socket.io.js");
+addJavascript("socket.io.js");
 
 function Room(serverAddr, serverPort, userId){
 	var RoutingSocketIO = null;
